@@ -1,7 +1,7 @@
 package me.ryanhamshire.GriefPrevention.events;
 
-import me.ryanhamshire.GriefPrevention.Claim;
-import me.ryanhamshire.GriefPrevention.Visualization;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
+import me.ryanhamshire.GriefPrevention.util.Visualization;
 import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.event.player.PlayerEvent;
@@ -62,6 +62,11 @@ public class VisualizationEvent extends PlayerEvent
         this.visualizingNearbyClaims = visualizingNearbyClaims;
     }
 
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
+    }
+
     /**
      * Get the visualization, or null if visualization being removed
      *
@@ -94,6 +99,7 @@ public class VisualizationEvent extends PlayerEvent
 
     /**
      * Check if event was called through shift-inspecting with the inspection tool.
+     *
      * @return True if shift-inspecting
      */
     public boolean isVisualizingNearbyClaims()
@@ -103,11 +109,6 @@ public class VisualizationEvent extends PlayerEvent
 
     @Override
     public HandlerList getHandlers()
-    {
-        return handlers;
-    }
-
-    public static HandlerList getHandlerList()
     {
         return handlers;
     }

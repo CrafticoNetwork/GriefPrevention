@@ -1,7 +1,7 @@
 package me.ryanhamshire.GriefPrevention.events;
 
-import me.ryanhamshire.GriefPrevention.Claim;
-import me.ryanhamshire.GriefPrevention.ClaimPermission;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
+import me.ryanhamshire.GriefPrevention.claims.ClaimPermission;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
@@ -59,6 +59,11 @@ public class ClaimPermissionCheckEvent extends Event
         this.claim = claim;
         this.requiredPermission = required;
         this.triggeringEvent = triggeringEvent;
+    }
+
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
     }
 
     /**
@@ -134,11 +139,6 @@ public class ClaimPermissionCheckEvent extends Event
 
     @Override
     public HandlerList getHandlers()
-    {
-        return handlers;
-    }
-
-    public static HandlerList getHandlerList()
     {
         return handlers;
     }

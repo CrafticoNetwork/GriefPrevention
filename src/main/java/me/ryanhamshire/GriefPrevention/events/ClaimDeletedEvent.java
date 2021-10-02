@@ -1,6 +1,6 @@
 package me.ryanhamshire.GriefPrevention.events;
 
-import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
@@ -15,17 +15,16 @@ public class ClaimDeletedEvent extends Event
 
     // Custom Event Requirements
     private static final HandlerList handlers = new HandlerList();
-
-    public static HandlerList getHandlerList()
-    {
-        return handlers;
-    }
-
     private final Claim claim;
 
     public ClaimDeletedEvent(Claim claim)
     {
         this.claim = claim;
+    }
+
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
     }
 
     /**

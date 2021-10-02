@@ -9,17 +9,17 @@ import org.bukkit.event.block.BlockBreakEvent;
 public class PreventBlockBreakEvent extends Event implements Cancellable
 {
     private static final HandlerList handlers = new HandlerList();
-    private boolean cancelled = false;
     private final BlockBreakEvent innerEvent;
-
-    public static HandlerList getHandlerList()
-    {
-        return handlers;
-    }
+    private boolean cancelled = false;
 
     public PreventBlockBreakEvent(BlockBreakEvent innerEvent)
     {
         this.innerEvent = innerEvent;
+    }
+
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
     }
 
     public BlockBreakEvent getInnerEvent()

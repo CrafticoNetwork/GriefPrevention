@@ -1,6 +1,6 @@
 package me.ryanhamshire.GriefPrevention.events;
 
-import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
@@ -9,18 +9,17 @@ import org.bukkit.event.HandlerList;
 public class ClaimExpirationEvent extends Event implements Cancellable
 {
     private static final HandlerList handlers = new HandlerList();
-    private boolean cancelled = false;
-
-    public static HandlerList getHandlerList()
-    {
-        return handlers;
-    }
-
     Claim claim;
+    private boolean cancelled = false;
 
     public ClaimExpirationEvent(Claim claim)
     {
         this.claim = claim;
+    }
+
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
     }
 
     public Claim getClaim()

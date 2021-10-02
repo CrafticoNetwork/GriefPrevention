@@ -1,7 +1,7 @@
 package me.ryanhamshire.GriefPrevention.events;
 
 
-import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
 import org.bukkit.command.CommandSender;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
@@ -16,12 +16,6 @@ public class ClaimModifiedEvent extends Event implements Cancellable
 {
 
     private static final HandlerList handlers = new HandlerList();
-
-    public static HandlerList getHandlerList()
-    {
-        return handlers;
-    }
-
     private final Claim from;
     private final Claim to;
     private final CommandSender modifier;
@@ -32,6 +26,11 @@ public class ClaimModifiedEvent extends Event implements Cancellable
         this.from = from;
         this.to = to;
         this.modifier = modifier;
+    }
+
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
     }
 
     @Override

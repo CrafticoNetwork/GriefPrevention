@@ -1,6 +1,6 @@
 package me.ryanhamshire.GriefPrevention.events;
 
-import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
@@ -12,24 +12,19 @@ import java.util.Collections;
 
 /**
  * Event is called whenever a user inspects a block using the inspection tool.
+ *
  * @author FrankHeijden
  */
 public class ClaimInspectionEvent extends PlayerEvent implements Cancellable
 {
     private static final HandlerList handlers = new HandlerList();
-
-    public static HandlerList getHandlerList()
-    {
-        return handlers;
-    }
-
     private final Collection<Claim> claims;
     private final Block inspectedBlock;
     private final boolean inspectingNearbyClaims;
     private boolean cancelled;
-
     /**
      * Constructs a new ClaimInspectionEvent with a player and claim instance.
+     *
      * @param player The player actor
      * @param inspectedBlock The inspected block
      * @param claim The claim involved
@@ -52,6 +47,7 @@ public class ClaimInspectionEvent extends PlayerEvent implements Cancellable
 
     /**
      * Constructs a new ClaimInspectionEvent with a player, list of claims and boolean flag inspectingNearbyClaims.
+     *
      * @param player The player actor
      * @param inspectedBlock The inspected block
      * @param claims The list of claims involved
@@ -63,6 +59,11 @@ public class ClaimInspectionEvent extends PlayerEvent implements Cancellable
         this.inspectedBlock = inspectedBlock;
         this.claims = claims;
         this.inspectingNearbyClaims = inspectingNearbyClaims;
+    }
+
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
     }
 
     public Block getInspectedBlock()

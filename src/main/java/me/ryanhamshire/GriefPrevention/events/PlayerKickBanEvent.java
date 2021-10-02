@@ -13,24 +13,11 @@ import org.bukkit.event.HandlerList;
 public class PlayerKickBanEvent extends Event
 {
     private static final HandlerList handlers = new HandlerList();
-
-    public static HandlerList getHandlerList()
-    {
-        return handlers;
-    }
-
-    @Override
-    public HandlerList getHandlers()
-    {
-        return handlers;
-    }
-
     private final Player player;
     private final String reason;
     private final String source;
     private final boolean ban;
     private boolean cancelled = false;
-
     /**
      * @param player Player getting kicked and/or banned
      * @param reason Reason message for kick/ban
@@ -43,6 +30,17 @@ public class PlayerKickBanEvent extends Event
         this.reason = reason;
         this.source = source;
         this.ban = ban;
+    }
+
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
+    }
+
+    @Override
+    public HandlerList getHandlers()
+    {
+        return handlers;
     }
 
     /**

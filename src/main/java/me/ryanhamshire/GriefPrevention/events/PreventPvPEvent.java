@@ -1,6 +1,6 @@
 package me.ryanhamshire.GriefPrevention.events;
 
-import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
@@ -11,22 +11,21 @@ import org.bukkit.event.HandlerList;
 public class PreventPvPEvent extends Event implements Cancellable
 {
     private static final HandlerList handlers = new HandlerList();
-    private boolean cancelled = false;
-
-    public static HandlerList getHandlerList()
-    {
-        return handlers;
-    }
-
     Claim claim;
     Player attacker;
     Entity defender;
+    private boolean cancelled = false;
 
     public PreventPvPEvent(Claim claim, Player attacker, Entity defender)
     {
         this.claim = claim;
         this.attacker = attacker;
         this.defender = defender;
+    }
+
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
     }
 
     public Claim getClaim()
@@ -41,7 +40,7 @@ public class PreventPvPEvent extends Event implements Cancellable
 
     /**
      * @return The defender -- almost in all cases a player, unless the attacker damages a Tamable (pet),
-     *         in which case the pet is returned.
+     * in which case the pet is returned.
      */
     public Entity getDefender()
     {

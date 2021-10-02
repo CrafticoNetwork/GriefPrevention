@@ -1,6 +1,6 @@
 package me.ryanhamshire.GriefPrevention.util;
 
-import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -24,37 +24,12 @@ import java.util.Objects;
 public class BoundingBox implements Cloneable
 {
 
-    /**
-     * Construct a new bounding box containing all of the given blocks.
-     *
-     * @param blocks a collection of blocks to construct a bounding box around
-     * @return the bounding box
-     */
-    public static BoundingBox ofBlocks(Collection<Block> blocks)
-    {
-        if (blocks.size() == 0) throw new IllegalArgumentException("Cannot create bounding box with no blocks!");
-
-        Iterator<Block> iterator = blocks.iterator();
-        // Initialize bounding box with first block
-        BoundingBox box = new BoundingBox(iterator.next());
-
-        // Fill in rest of bounding box with remaining blocks.
-        while (iterator.hasNext())
-        {
-            Block block = iterator.next();
-            box.union(block.getX(), block.getY(), block.getZ());
-        }
-
-        return box;
-    }
-
     private int minX;
     private int minY;
     private int minZ;
     private int maxX;
     private int maxY;
     private int maxZ;
-
     /**
      * Construct a new bounding box with the given corners.
      *
@@ -66,7 +41,8 @@ public class BoundingBox implements Cloneable
      * @param z2 the Z coordinate of the second corner
      * @param verify whether or not to verify that the provided corners are in fact the minimum corners
      */
-    protected BoundingBox(int x1, int y1, int z1, int x2, int y2, int z2, boolean verify) {
+    protected BoundingBox(int x1, int y1, int z1, int x2, int y2, int z2, boolean verify)
+    {
         if (verify)
         {
             verify(x1, y1, z1, x2, y2, z2);
@@ -175,6 +151,30 @@ public class BoundingBox implements Cloneable
     }
 
     /**
+     * Construct a new bounding box containing all of the given blocks.
+     *
+     * @param blocks a collection of blocks to construct a bounding box around
+     * @return the bounding box
+     */
+    public static BoundingBox ofBlocks(Collection<Block> blocks)
+    {
+        if (blocks.size() == 0) throw new IllegalArgumentException("Cannot create bounding box with no blocks!");
+
+        Iterator<Block> iterator = blocks.iterator();
+        // Initialize bounding box with first block
+        BoundingBox box = new BoundingBox(iterator.next());
+
+        // Fill in rest of bounding box with remaining blocks.
+        while (iterator.hasNext())
+        {
+            Block block = iterator.next();
+            box.union(block.getX(), block.getY(), block.getZ());
+        }
+
+        return box;
+    }
+
+    /**
      * Sets bounds of this bounding box to the specified values.
      * Ensures that the minimum and maximum corners are set from the correct respective values.
      *
@@ -185,7 +185,8 @@ public class BoundingBox implements Cloneable
      * @param y2 the second Y value
      * @param z2 the second Z value
      */
-    private void verify(int x1, int y1, int z1, int x2, int y2, int z2) {
+    private void verify(int x1, int y1, int z1, int x2, int y2, int z2)
+    {
         if (x1 < x2)
         {
             this.minX = x1;
@@ -566,7 +567,8 @@ public class BoundingBox implements Cloneable
      * @param maxZ the maximum X value to check for containment
      * @return true if the specified values are inside the bounding box
      */
-    private boolean contains2dInternal(int minX, int minZ, int maxX, int maxZ) {
+    private boolean contains2dInternal(int minX, int minZ, int maxX, int maxZ)
+    {
         return minX >= this.minX && maxX <= this.maxX
                 && minZ >= this.minZ && maxZ <= this.maxZ;
     }
@@ -629,19 +631,25 @@ public class BoundingBox implements Cloneable
     {
         int minX;
         int maxX;
-        if (x1 < x2) {
+        if (x1 < x2)
+        {
             minX = x1;
             maxX = x2;
-        } else {
+        }
+        else
+        {
             minX = x2;
             maxX = x1;
         }
         int minZ;
         int maxZ;
-        if (z1 < z2) {
+        if (z1 < z2)
+        {
             minZ = z1;
             maxZ = z2;
-        } else {
+        }
+        else
+        {
             minZ = z2;
             maxZ = z1;
         }

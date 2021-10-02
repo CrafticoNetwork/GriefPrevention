@@ -18,11 +18,44 @@
 
 package me.ryanhamshire.GriefPrevention;
 
-import me.ryanhamshire.GriefPrevention.DataStore.NoTransferException;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
+import me.ryanhamshire.GriefPrevention.claims.ClaimPermission;
+import me.ryanhamshire.GriefPrevention.claims.ClaimsMode;
+import me.ryanhamshire.GriefPrevention.claims.CreateClaimResult;
+import me.ryanhamshire.GriefPrevention.claims.CustomLogEntryTypes;
+import me.ryanhamshire.GriefPrevention.data.DataStore;
+import me.ryanhamshire.GriefPrevention.data.DataStore.NoTransferException;
+import me.ryanhamshire.GriefPrevention.data.DatabaseDataStore;
+import me.ryanhamshire.GriefPrevention.data.FlatFileDataStore;
+import me.ryanhamshire.GriefPrevention.data.PlayerData;
+import me.ryanhamshire.GriefPrevention.enums.Messages;
+import me.ryanhamshire.GriefPrevention.enums.PistonMode;
+import me.ryanhamshire.GriefPrevention.enums.ShovelMode;
 import me.ryanhamshire.GriefPrevention.events.PreventBlockBreakEvent;
 import me.ryanhamshire.GriefPrevention.events.SaveTrappedPlayerEvent;
 import me.ryanhamshire.GriefPrevention.events.TrustChangedEvent;
-import me.ryanhamshire.GriefPrevention.metrics.MetricsHandler;
+import me.ryanhamshire.GriefPrevention.handlers.BlockEventHandler;
+import me.ryanhamshire.GriefPrevention.handlers.EconomyHandler;
+import me.ryanhamshire.GriefPrevention.handlers.EntityEventHandler;
+import me.ryanhamshire.GriefPrevention.handlers.PlayerEventHandler;
+import me.ryanhamshire.GriefPrevention.handlers.SiegeEventHandler;
+import me.ryanhamshire.GriefPrevention.tasks.AutoExtendClaimTask;
+import me.ryanhamshire.GriefPrevention.tasks.CheckForPortalTrapTask;
+import me.ryanhamshire.GriefPrevention.tasks.DeliverClaimBlocksTask;
+import me.ryanhamshire.GriefPrevention.tasks.EntityCleanupTask;
+import me.ryanhamshire.GriefPrevention.tasks.FindUnusedClaimsTask;
+import me.ryanhamshire.GriefPrevention.tasks.PendingItemProtection;
+import me.ryanhamshire.GriefPrevention.tasks.PlayerRescueTask;
+import me.ryanhamshire.GriefPrevention.tasks.PvPImmunityValidationTask;
+import me.ryanhamshire.GriefPrevention.tasks.RestoreNatureProcessingTask;
+import me.ryanhamshire.GriefPrevention.tasks.SendPlayerMessageTask;
+import me.ryanhamshire.GriefPrevention.tasks.WelcomeTask;
+import me.ryanhamshire.GriefPrevention.util.BlockSnapshot;
+import me.ryanhamshire.GriefPrevention.util.CustomLogger;
+import me.ryanhamshire.GriefPrevention.util.IgnoreLoaderThread;
+import me.ryanhamshire.GriefPrevention.util.TextMode;
+import me.ryanhamshire.GriefPrevention.util.Visualization;
+import me.ryanhamshire.GriefPrevention.util.VisualizationType;
 import net.gcnt.crafticoprevention.menus.ClaimAdminMenu;
 import net.gcnt.crafticoprevention.menus.DeleteClaimMenu;
 import net.gcnt.crafticoprevention.menus.ManageTrustsMenu;
@@ -77,32 +110,24 @@ import java.util.stream.Collectors;
 
 public class GriefPrevention extends JavaPlugin
 {
+    //how far away to search from a tree trunk for its branch blocks
+    public static final int TREE_RADIUS = 5;
+    //how long to wait before deciding a player is staying online or staying offline, for notication messages
+    public static final int NOTIFICATION_SECONDS = 20;
     //for convenience, a reference to the instance of this plugin
     public static GriefPrevention instance;
-
     //for logging to the console and log file
     private static Logger log;
-
     //this handles data storage, like player and region data
     public DataStore dataStore;
-
     public ClaimAdminMenu claimAdminMenu;
     public DeleteClaimMenu deleteClaimMenu;
     public SelectTrustCategoryMenu selectTrustCategoryMenu;
     public ManageTrustsMenu manageTrustsMenu;
 
-    //this tracks item stacks expected to drop which will need protection
-    ArrayList<PendingItemProtection> pendingItemWatchList = new ArrayList<>();
-
-    //log entry manager for GP's custom log files
-    CustomLogger customLogger;
-
     //configuration variables, loaded/saved from a config.yml
-
     //claim mode for each world
     public ConcurrentHashMap<World, ClaimsMode> config_claims_worldModes;
-    private boolean config_creativeWorldsExist;                     //note on whether there are any creative mode worlds, to save cpu cycles on a common hash lookup
-
     public boolean config_claims_preventGlobalMonsterEggs; //whether monster eggs can be placed regardless of trust.
     public boolean config_claims_preventTheft;                        //whether containers and crafting blocks are protectable
     public boolean config_claims_protectCreatures;                    //whether claimed animals may be injured by players without permission
@@ -118,7 +143,6 @@ public class GriefPrevention extends JavaPlugin
     public int config_claims_maxClaimsPerPlayer;                    //maximum number of claims per player
     public boolean config_claims_respectWorldGuard;                 //whether claim creations requires WG build permission in creation area
     public boolean config_claims_villagerTradingRequiresTrust;      //whether trading with a claimed villager requires permission
-
     public int config_claims_initialBlocks;                            //the number of claim blocks a new player starts with
     public double config_claims_abandonReturnRatio;                 //the portion of claim blocks returned to a player when a claim is abandoned
     public int config_claims_blocksAccruedPerHour_default;            //how many additional blocks players get each hour of play (can be zero) without any special permissions
@@ -129,30 +153,23 @@ public class GriefPrevention extends JavaPlugin
     public int config_claims_expirationDays;                        //how many days of inactivity before a player loses his claims
     public int config_claims_expirationExemptionTotalBlocks;        //total claim blocks amount which will exempt a player from claim expiration
     public int config_claims_expirationExemptionBonusBlocks;        //bonus claim blocks amount which will exempt a player from claim expiration
-
     public int config_claims_automaticClaimsForNewPlayersRadius;    //how big automatic new player claims (when they place a chest) should be.  -1 to disable
     public int config_claims_automaticClaimsForNewPlayersRadiusMin; //how big automatic new player claims must be. 0 to disable
     public int config_claims_claimsExtendIntoGroundDistance;        //how far below the shoveled block a new claim will reach
     public int config_claims_minWidth;                                //minimum width for non-admin claims
     public int config_claims_minArea;                               //minimum area for non-admin claims
-
     public int config_claims_chestClaimExpirationDays;                //number of days of inactivity before an automatic chest claim will be deleted
     public int config_claims_unusedClaimExpirationDays;                //number of days of inactivity before an unused (nothing build) claim will be deleted
     public boolean config_claims_survivalAutoNatureRestoration;        //whether survival claims will be automatically restored to nature when auto-deleted
     public boolean config_claims_allowTrappedInAdminClaims;            //whether it should be allowed to use /trapped in adminclaims.
-
     public Material config_claims_investigationTool;                //which material will be used to investigate claims with a right click
     public Material config_claims_modificationTool;                    //which material will be used to create/resize claims with a right click
-
     public ArrayList<String> config_claims_commandsRequiringAccessTrust; //the list of slash commands requiring access trust when in a claim
     public boolean config_claims_supplyPlayerManual;                //whether to give new players a book with land claim help in it
     public int config_claims_manualDeliveryDelaySeconds;            //how long to wait before giving a book to a new player
-
     public boolean config_claims_firespreads;                        //whether fire will spread in claims
     public boolean config_claims_firedamages;                        //whether fire will damage in claims
-
     public boolean config_claims_lecternReadingRequiresAccessTrust;                    //reading lecterns requires access trust
-
     public ArrayList<World> config_siege_enabledWorlds;                //whether or not /siege is enabled on this server
     public Set<Material> config_siege_blocks;                    //which blocks will be breakable in siege mode
     public int config_siege_doorsOpenSeconds;  // how before claim is re-secured after siege win
@@ -167,8 +184,6 @@ public class GriefPrevention extends JavaPlugin
     public String config_spam_allowedIpAddresses;                    //IP addresses which will not be censored
     public int config_spam_deathMessageCooldownSeconds;                //cooldown period for death messages (per player) in seconds
     public int config_spam_logoutMessageDelaySeconds;               //delay before a logout message will be shown (only if the player stays offline that long)
-
-    HashMap<World, Boolean> config_pvp_specifiedWorlds;                //list of worlds where pvp anti-grief rules apply, according to the config file
     public boolean config_pvp_protectFreshSpawns;                    //whether to make newly spawned players immune until they pick up an item
     public boolean config_pvp_punishLogout;                            //whether to kill players who log out during PvP combat
     public int config_pvp_combatTimeoutSeconds;                        //how long combat is considered to continue after the most recent damage
@@ -182,51 +197,37 @@ public class GriefPrevention extends JavaPlugin
     public boolean config_pvp_allowFireNearPlayers;                 //whether players may start flint/steel fires near other players in pvp worlds
     public boolean config_pvp_allowFireNearPlayers_NonPvp;            //whether this applies in non-PVP rules worlds <ArchdukeLiamus>
     public boolean config_pvp_protectPets;                          //whether players may damage pets outside of land claims in pvp worlds
-
     public boolean config_lockDeathDropsInPvpWorlds;                //whether players' dropped on death items are protected in pvp worlds
     public boolean config_lockDeathDropsInNonPvpWorlds;             //whether players' dropped on death items are protected in non-pvp worlds
-
-    private EconomyHandler economyHandler;
     public int config_economy_claimBlocksMaxBonus;                  //max "bonus" blocks a player can buy.  set to zero for no limit.
     public double config_economy_claimBlocksPurchaseCost;            //cost to purchase a claim block.  set to zero to disable purchase.
     public double config_economy_claimBlocksSellValue;                //return on a sold claim block.  set to zero to disable sale.
-
     public boolean config_blockClaimExplosions;                     //whether explosions may destroy claimed blocks
     public boolean config_blockSurfaceCreeperExplosions;            //whether creeper explosions near or above the surface destroy blocks
     public boolean config_blockSurfaceOtherExplosions;                //whether non-creeper explosions near or above the surface destroy blocks
     public boolean config_blockSkyTrees;                            //whether players can build trees on platforms in the sky
-
     public boolean config_fireSpreads;                                //whether fire spreads outside of claims
     public boolean config_fireDestroys;                                //whether fire destroys blocks outside of claims
-
     public boolean config_whisperNotifications;                    //whether whispered messages will broadcast to administrators in game
     public boolean config_signNotifications;                        //whether sign content will broadcast to administrators in game
     public ArrayList<String> config_eavesdrop_whisperCommands;        //list of whisper commands to eavesdrop on
-
     public boolean config_smartBan;                                    //whether to ban accounts which very likely owned by a banned player
-
     public boolean config_endermenMoveBlocks;                        //whether or not endermen may move blocks around
     public boolean config_claims_ravagersBreakBlocks;                //whether or not ravagers may break blocks in claims
     public boolean config_silverfishBreakBlocks;                    //whether silverfish may break blocks
     public boolean config_creaturesTrampleCrops;                    //whether or not non-player entities may trample crops
     public boolean config_rabbitsEatCrops;                          //whether or not rabbits may eat crops
     public boolean config_zombiesBreakDoors;                        //whether or not hard-mode zombies may break down wooden doors
-
     public int config_ipLimit;                                      //how many players can share an IP address
-
     public boolean config_trollFilterEnabled;                       //whether to auto-mute new players who use banned words right after joining
     public boolean config_silenceBans;                              //whether to remove quit messages on banned players
-
     public HashMap<String, Integer> config_seaLevelOverride;        //override for sea level, because bukkit doesn't report the right value for all situations
-
     public boolean config_limitTreeGrowth;                          //whether trees should be prevented from growing into a claim from outside
     public PistonMode config_pistonMovement;                            //Setting for piston check options
     public boolean config_pistonExplosionSound;                     //whether pistons make an explosion sound when they get removed
-
     public boolean config_advanced_fixNegativeClaimblockAmounts;    //whether to attempt to fix negative claim block amounts (some addons cause/assume players can go into negative amounts)
     public int config_advanced_claim_expiration_check_rate;            //How often GP should check for expired claims, amount in seconds
     public int config_advanced_offlineplayer_cache_days;            //Cache players who have logged in within the last x number of days
-
     //custom log settings
     public int config_logs_daysToKeep;
     public boolean config_logs_socialEnabled;
@@ -234,21 +235,23 @@ public class GriefPrevention extends JavaPlugin
     public boolean config_logs_adminEnabled;
     public boolean config_logs_debugEnabled;
     public boolean config_logs_mutedChatEnabled;
-
     //ban management plugin interop settings
     public boolean config_ban_useCommand;
     public String config_ban_commandFormat;
-
+    //Track scheduled "rescues" so we can cancel them if the player happens to teleport elsewhere so we can cancel it.
+    public ConcurrentHashMap<UUID, BukkitTask> portalReturnTaskMap = new ConcurrentHashMap<>();
+    public EconomyHandler economyHandler;
+    //this tracks item stacks expected to drop which will need protection
+    ArrayList<PendingItemProtection> pendingItemWatchList = new ArrayList<>();
+    //log entry manager for GP's custom log files
+    CustomLogger customLogger;
+    HashMap<World, Boolean> config_pvp_specifiedWorlds;                //list of worlds where pvp anti-grief rules apply, according to the config file
+    //helper method to resolve a player by name
+    ConcurrentHashMap<String, UUID> playerNameToIDMap = new ConcurrentHashMap<>();
+    private boolean config_creativeWorldsExist;                     //note on whether there are any creative mode worlds, to save cpu cycles on a common hash lookup
     private String databaseUrl;
     private String databaseUserName;
     private String databasePassword;
-
-
-    //how far away to search from a tree trunk for its branch blocks
-    public static final int TREE_RADIUS = 5;
-
-    //how long to wait before deciding a player is staying online or staying offline, for notication messages
-    public static final int NOTIFICATION_SECONDS = 20;
 
     //adds a server log entry
     public static synchronized void AddLogEntry(String entry, CustomLogEntryTypes customLogType, boolean excludeFromServerLogs)
@@ -268,6 +271,160 @@ public class GriefPrevention extends JavaPlugin
     public static synchronized void AddLogEntry(String entry)
     {
         AddLogEntry(entry, CustomLogEntryTypes.Debug);
+    }
+
+    public static String getfriendlyLocationString(Location location)
+    {
+        return location.getWorld().getName() + ": x" + location.getBlockX() + ", z" + location.getBlockZ();
+    }
+
+    //helper method to resolve a player name from the player's UUID
+    public static String lookupPlayerName(UUID playerID)
+    {
+        //parameter validation
+        if (playerID == null) return "somebody";
+
+        //check the cache
+        OfflinePlayer player = GriefPrevention.instance.getServer().getOfflinePlayer(playerID);
+        if (player.hasPlayedBefore() || player.isOnline())
+        {
+            return player.getName();
+        }
+        else
+        {
+            return "someone(" + playerID + ")";
+        }
+    }
+
+    //cache for player name lookups, to save searches of all offline players
+    public static void cacheUUIDNamePair(UUID playerID, String playerName)
+    {
+        //store the reverse mapping
+        GriefPrevention.instance.playerNameToIDMap.put(playerName, playerID);
+        GriefPrevention.instance.playerNameToIDMap.put(playerName.toLowerCase(), playerID);
+    }
+
+    //string overload for above helper
+    public static String lookupPlayerName(String playerID)
+    {
+        UUID id;
+        try
+        {
+            id = UUID.fromString(playerID);
+        }
+        catch (IllegalArgumentException ex)
+        {
+            GriefPrevention.AddLogEntry("Error: Tried to look up a local player name for invalid UUID: " + playerID);
+            return "someone";
+        }
+
+        return lookupPlayerName(id);
+    }
+
+    public static boolean isInventoryEmpty(Player player)
+    {
+        PlayerInventory inventory = player.getInventory();
+        ItemStack[] armorStacks = inventory.getArmorContents();
+
+        //check armor slots, stop if any items are found
+        for (ItemStack armorStack : armorStacks)
+        {
+            if (!(armorStack == null || armorStack.getType() == Material.AIR)) return false;
+        }
+
+        //check other slots, stop if any items are found
+        ItemStack[] generalStacks = inventory.getContents();
+        for (ItemStack generalStack : generalStacks)
+        {
+            if (!(generalStack == null || generalStack.getType() == Material.AIR)) return false;
+        }
+
+        return true;
+    }
+
+    //ensures a piece of the managed world is loaded into server memory
+    //(generates the chunk if necessary)
+    private static void GuaranteeChunkLoaded(Location location)
+    {
+        Chunk chunk = location.getChunk();
+        while (!chunk.isLoaded() || !chunk.load(true)) ;
+    }
+
+    //sends a color-coded message to a player
+    public static void sendMessage(Player player, ChatColor color, Messages messageID, String... args)
+    {
+        sendMessage(player, color, messageID, 0, args);
+    }
+
+    //sends a color-coded message to a player
+    public static void sendMessage(Player player, ChatColor color, Messages messageID, long delayInTicks, String... args)
+    {
+        String message = GriefPrevention.instance.dataStore.getMessage(messageID, args);
+        sendMessage(player, color, message, delayInTicks);
+    }
+
+    //sends a color-coded message to a player
+    public static void sendMessage(Player player, ChatColor color, String message)
+    {
+        if (message == null || message.length() == 0) return;
+
+        if (player == null)
+        {
+            GriefPrevention.AddLogEntry(color + message);
+        }
+        else
+        {
+            player.sendMessage(color + message);
+        }
+    }
+
+    public static void sendMessage(Player player, ChatColor color, String message, long delayInTicks)
+    {
+        SendPlayerMessageTask task = new SendPlayerMessageTask(player, color, message);
+
+        //Only schedule if there should be a delay. Otherwise, send the message right now, else the message will appear out of order.
+        if (delayInTicks > 0)
+        {
+            GriefPrevention.instance.getServer().getScheduler().runTaskLater(GriefPrevention.instance, task, delayInTicks);
+        }
+        else
+        {
+            task.run();
+        }
+    }
+
+    public static boolean isNewToServer(Player player)
+    {
+        if (player.getStatistic(Statistic.PICKUP, Material.OAK_LOG) > 0 ||
+                player.getStatistic(Statistic.PICKUP, Material.SPRUCE_LOG) > 0 ||
+                player.getStatistic(Statistic.PICKUP, Material.BIRCH_LOG) > 0 ||
+                player.getStatistic(Statistic.PICKUP, Material.JUNGLE_LOG) > 0 ||
+                player.getStatistic(Statistic.PICKUP, Material.ACACIA_LOG) > 0 ||
+                player.getStatistic(Statistic.PICKUP, Material.DARK_OAK_LOG) > 0) return false;
+
+        PlayerData playerData = instance.dataStore.getPlayerData(player.getUniqueId());
+        return playerData.getClaims().size() <= 0;
+    }
+
+    public static void banPlayer(Player player, String reason, String source)
+    {
+        if (GriefPrevention.instance.config_ban_useCommand)
+        {
+            Bukkit.getServer().dispatchCommand(
+                    Bukkit.getConsoleSender(),
+                    GriefPrevention.instance.config_ban_commandFormat.replace("%name%", player.getName()).replace("%reason%", reason));
+        }
+        else
+        {
+            BanList bans = Bukkit.getServer().getBanList(Type.NAME);
+            bans.addBan(player.getName(), reason, null, source);
+
+            //kick
+            if (player.isOnline())
+            {
+                player.kickPlayer(reason);
+            }
+        }
     }
 
     //initializes well...   everything
@@ -407,12 +564,6 @@ public class GriefPrevention extends JavaPlugin
         Bukkit.getPluginManager().registerEvents(this.deleteClaimMenu, this);
         Bukkit.getPluginManager().registerEvents(this.selectTrustCategoryMenu, this);
         Bukkit.getPluginManager().registerEvents(this.manageTrustsMenu, this);
-
-        try
-        {
-            new MetricsHandler(this, dataMode);
-        }
-        catch (Throwable ignored) {}
     }
 
     public ManageTrustsMenu getManageTrustsMenu()
@@ -435,7 +586,7 @@ public class GriefPrevention extends JavaPlugin
         return deleteClaimMenu;
     }
 
-    private void loadConfig()
+    public void loadConfig()
     {
         //load the config if it exists
         FileConfiguration config = YamlConfiguration.loadConfiguration(new File(DataStore.configFilePath));
@@ -540,7 +691,7 @@ public class GriefPrevention extends JavaPlugin
             }
 
             //if the setting WOULD be disabled but this is a server upgrading from the old config format,
-            //then default to survival mode for safety's sake (to protect any admin claims which may 
+            //then default to survival mode for safety's sake (to protect any admin claims which may
             //have been created there)
             if (this.config_claims_worldModes.get(world) == ClaimsMode.Disabled &&
                     deprecated_claimsEnabledWorldNames.size() > 0)
@@ -1402,7 +1553,7 @@ public class GriefPrevention extends JavaPlugin
                 {
                     playerData.fillRadius = Integer.parseInt(args[0]);
                 }
-                catch (Exception exception) { }
+                catch (Exception exception) {}
             }
 
             if (playerData.fillRadius < 0) playerData.fillRadius = 2;
@@ -2417,7 +2568,7 @@ public class GriefPrevention extends JavaPlugin
             }
 
             GriefPrevention.sendMessage(player, TextMode.Success, Messages.AdjustBlocksAllSuccess, String.valueOf(adjustment));
-            GriefPrevention.AddLogEntry("Adjusted all " + players.size() + "players' bonus claim blocks by " + adjustment + ".  " + builder.toString(), CustomLogEntryTypes.AdminActivity);
+            GriefPrevention.AddLogEntry("Adjusted all " + players.size() + "players' bonus claim blocks by " + adjustment + ".  " + builder, CustomLogEntryTypes.AdminActivity);
 
             return true;
         }
@@ -2875,7 +3026,7 @@ public class GriefPrevention extends JavaPlugin
         return false;
     }
 
-    void setIgnoreStatus(OfflinePlayer ignorer, OfflinePlayer ignoree, IgnoreMode mode)
+    public void setIgnoreStatus(OfflinePlayer ignorer, OfflinePlayer ignoree, IgnoreMode mode)
     {
         PlayerData playerData = this.dataStore.getPlayerData(ignorer.getUniqueId());
         if (mode == IgnoreMode.None)
@@ -2884,7 +3035,7 @@ public class GriefPrevention extends JavaPlugin
         }
         else
         {
-            playerData.ignoredPlayers.put(ignoree.getUniqueId(), mode == IgnoreMode.StandardIgnore ? false : true);
+            playerData.ignoredPlayers.put(ignoree.getUniqueId(), mode != IgnoreMode.StandardIgnore);
         }
 
         playerData.ignoreListChanged = true;
@@ -2895,10 +3046,7 @@ public class GriefPrevention extends JavaPlugin
         }
     }
 
-    public enum IgnoreMode
-    {None, StandardIgnore, AdminIgnore}
-
-    private String trustEntryToPlayerName(String entry)
+    public String trustEntryToPlayerName(String entry)
     {
         if (entry.startsWith("[") || entry.equals("public"))
         {
@@ -2910,12 +3058,7 @@ public class GriefPrevention extends JavaPlugin
         }
     }
 
-    public static String getfriendlyLocationString(Location location)
-    {
-        return location.getWorld().getName() + ": x" + location.getBlockX() + ", z" + location.getBlockZ();
-    }
-
-    private boolean abandonClaimHandler(Player player, boolean deleteTopLevelClaim)
+    public boolean abandonClaimHandler(Player player, boolean deleteTopLevelClaim)
     {
         PlayerData playerData = this.dataStore.getPlayerData(player.getUniqueId());
 
@@ -2973,7 +3116,7 @@ public class GriefPrevention extends JavaPlugin
     }
 
     //helper method keeps the trust commands consistent and eliminates duplicate code
-    private void handleTrustCommand(Player player, ClaimPermission permissionLevel, String recipientName)
+    public void handleTrustCommand(Player player, ClaimPermission permissionLevel, String recipientName)
     {
         //determine which claim the player is standing in
         Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
@@ -3136,53 +3279,6 @@ public class GriefPrevention extends JavaPlugin
         GriefPrevention.sendMessage(player, TextMode.Success, Messages.GrantPermissionConfirmation, recipientName, permissionDescription, location);
     }
 
-    //helper method to resolve a player by name
-    ConcurrentHashMap<String, UUID> playerNameToIDMap = new ConcurrentHashMap<>();
-
-    //thread to build the above cache
-    private class CacheOfflinePlayerNamesThread extends Thread
-    {
-        private final OfflinePlayer[] offlinePlayers;
-        private final ConcurrentHashMap<String, UUID> playerNameToIDMap;
-
-        CacheOfflinePlayerNamesThread(OfflinePlayer[] offlinePlayers, ConcurrentHashMap<String, UUID> playerNameToIDMap)
-        {
-            this.offlinePlayers = offlinePlayers;
-            this.playerNameToIDMap = playerNameToIDMap;
-        }
-
-        public void run()
-        {
-            long now = System.currentTimeMillis();
-            final long millisecondsPerDay = 1000 * 60 * 60 * 24;
-            for (OfflinePlayer player : offlinePlayers)
-            {
-                try
-                {
-                    UUID playerID = player.getUniqueId();
-                    if (playerID == null) continue;
-                    long lastSeen = player.getLastPlayed();
-
-                    //if the player has been seen in the last 90 days, cache his name/UUID pair
-                    long diff = now - lastSeen;
-                    long daysDiff = diff / millisecondsPerDay;
-                    if (daysDiff <= config_advanced_offlineplayer_cache_days)
-                    {
-                        String playerName = player.getName();
-                        if (playerName == null) continue;
-                        this.playerNameToIDMap.put(playerName, playerID);
-                        this.playerNameToIDMap.put(playerName.toLowerCase(), playerID);
-                    }
-                }
-                catch (Exception e)
-                {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-
     public OfflinePlayer resolvePlayerByName(String name)
     {
         //try online players first
@@ -3205,49 +3301,6 @@ public class GriefPrevention extends JavaPlugin
         }
 
         return this.getServer().getOfflinePlayer(bestMatchID);
-    }
-
-    //helper method to resolve a player name from the player's UUID
-    static String lookupPlayerName(UUID playerID)
-    {
-        //parameter validation
-        if (playerID == null) return "somebody";
-
-        //check the cache
-        OfflinePlayer player = GriefPrevention.instance.getServer().getOfflinePlayer(playerID);
-        if (player.hasPlayedBefore() || player.isOnline())
-        {
-            return player.getName();
-        }
-        else
-        {
-            return "someone(" + playerID.toString() + ")";
-        }
-    }
-
-    //cache for player name lookups, to save searches of all offline players
-    static void cacheUUIDNamePair(UUID playerID, String playerName)
-    {
-        //store the reverse mapping
-        GriefPrevention.instance.playerNameToIDMap.put(playerName, playerID);
-        GriefPrevention.instance.playerNameToIDMap.put(playerName.toLowerCase(), playerID);
-    }
-
-    //string overload for above helper
-    static String lookupPlayerName(String playerID)
-    {
-        UUID id;
-        try
-        {
-            id = UUID.fromString(playerID);
-        }
-        catch (IllegalArgumentException ex)
-        {
-            GriefPrevention.AddLogEntry("Error: Tried to look up a local player name for invalid UUID: " + playerID);
-            return "someone";
-        }
-
-        return lookupPlayerName(id);
     }
 
     public void onDisable()
@@ -3301,27 +3354,6 @@ public class GriefPrevention extends JavaPlugin
         }
     }
 
-    static boolean isInventoryEmpty(Player player)
-    {
-        PlayerInventory inventory = player.getInventory();
-        ItemStack[] armorStacks = inventory.getArmorContents();
-
-        //check armor slots, stop if any items are found
-        for (ItemStack armorStack : armorStacks)
-        {
-            if (!(armorStack == null || armorStack.getType() == Material.AIR)) return false;
-        }
-
-        //check other slots, stop if any items are found
-        ItemStack[] generalStacks = inventory.getContents();
-        for (ItemStack generalStack : generalStacks)
-        {
-            if (!(generalStack == null || generalStack.getType() == Material.AIR)) return false;
-        }
-
-        return true;
-    }
-
     //checks whether players siege in a world
     public boolean siegeEnabledForWorld(World world)
     {
@@ -3355,57 +3387,6 @@ public class GriefPrevention extends JavaPlugin
                 player.teleport(destination);
                 return destination;
             }
-        }
-    }
-
-    //ensures a piece of the managed world is loaded into server memory
-    //(generates the chunk if necessary)
-    private static void GuaranteeChunkLoaded(Location location)
-    {
-        Chunk chunk = location.getChunk();
-        while (!chunk.isLoaded() || !chunk.load(true)) ;
-    }
-
-    //sends a color-coded message to a player
-    public static void sendMessage(Player player, ChatColor color, Messages messageID, String... args)
-    {
-        sendMessage(player, color, messageID, 0, args);
-    }
-
-    //sends a color-coded message to a player
-    public static void sendMessage(Player player, ChatColor color, Messages messageID, long delayInTicks, String... args)
-    {
-        String message = GriefPrevention.instance.dataStore.getMessage(messageID, args);
-        sendMessage(player, color, message, delayInTicks);
-    }
-
-    //sends a color-coded message to a player
-    public static void sendMessage(Player player, ChatColor color, String message)
-    {
-        if (message == null || message.length() == 0) return;
-
-        if (player == null)
-        {
-            GriefPrevention.AddLogEntry(color + message);
-        }
-        else
-        {
-            player.sendMessage(color + message);
-        }
-    }
-
-    public static void sendMessage(Player player, ChatColor color, String message, long delayInTicks)
-    {
-        SendPlayerMessageTask task = new SendPlayerMessageTask(player, color, message);
-
-        //Only schedule if there should be a delay. Otherwise, send the message right now, else the message will appear out of order.
-        if (delayInTicks > 0)
-        {
-            GriefPrevention.instance.getServer().getScheduler().runTaskLater(GriefPrevention.instance, task, delayInTicks);
-        }
-        else
-        {
-            task.run();
         }
     }
 
@@ -3563,7 +3544,6 @@ public class GriefPrevention extends JavaPlugin
         }
     }
 
-
     public void restoreChunk(Chunk chunk, int miny, boolean aggressiveMode, long delayInTicks, Player playerReceivingVisualization)
     {
         //build a snapshot of this chunk, including 1 block boundary outside of the chunk all the way around
@@ -3655,16 +3635,13 @@ public class GriefPrevention extends JavaPlugin
         if (matcher.find())
         {
             //and it's not in the list of allowed IP addresses
-            if (!GriefPrevention.instance.config_spam_allowedIpAddresses.contains(matcher.group()))
-            {
-                return true;
-            }
+            return !GriefPrevention.instance.config_spam_allowedIpAddresses.contains(matcher.group());
         }
 
         return false;
     }
 
-    void autoExtendClaim(Claim newClaim)
+    public void autoExtendClaim(Claim newClaim)
     {
         //auto-extend it downward to cover anything already built underground
         Location lesserCorner = newClaim.getLesserBoundaryCorner();
@@ -3692,42 +3669,6 @@ public class GriefPrevention extends JavaPlugin
         return world.getPVP();
     }
 
-    public static boolean isNewToServer(Player player)
-    {
-        if (player.getStatistic(Statistic.PICKUP, Material.OAK_LOG) > 0 ||
-                player.getStatistic(Statistic.PICKUP, Material.SPRUCE_LOG) > 0 ||
-                player.getStatistic(Statistic.PICKUP, Material.BIRCH_LOG) > 0 ||
-                player.getStatistic(Statistic.PICKUP, Material.JUNGLE_LOG) > 0 ||
-                player.getStatistic(Statistic.PICKUP, Material.ACACIA_LOG) > 0 ||
-                player.getStatistic(Statistic.PICKUP, Material.DARK_OAK_LOG) > 0) return false;
-
-        PlayerData playerData = instance.dataStore.getPlayerData(player.getUniqueId());
-        if (playerData.getClaims().size() > 0) return false;
-
-        return true;
-    }
-
-    static void banPlayer(Player player, String reason, String source)
-    {
-        if (GriefPrevention.instance.config_ban_useCommand)
-        {
-            Bukkit.getServer().dispatchCommand(
-                    Bukkit.getConsoleSender(),
-                    GriefPrevention.instance.config_ban_commandFormat.replace("%name%", player.getName()).replace("%reason%", reason));
-        }
-        else
-        {
-            BanList bans = Bukkit.getServer().getBanList(Type.NAME);
-            bans.addBan(player.getName(), reason, null, source);
-
-            //kick
-            if (player.isOnline())
-            {
-                player.kickPlayer(reason);
-            }
-        }
-    }
-
     public ItemStack getItemInHand(Player player, EquipmentSlot hand)
     {
         if (hand == EquipmentSlot.OFF_HAND) return player.getInventory().getItemInOffHand();
@@ -3741,6 +3682,18 @@ public class GriefPrevention extends JavaPlugin
         return claim.isAdminClaim() && claim.parent == null && GriefPrevention.instance.config_pvp_noCombatInAdminLandClaims ||
                 claim.isAdminClaim() && claim.parent != null && GriefPrevention.instance.config_pvp_noCombatInAdminSubdivisions ||
                 !claim.isAdminClaim() && GriefPrevention.instance.config_pvp_noCombatInPlayerLandClaims;
+    }
+
+    public void startRescueTask(Player player, Location location)
+    {
+        //Schedule task to reset player's portal cooldown after 30 seconds (Maximum timeout time for client, in case their network is slow and taking forever to load chunks)
+        BukkitTask task = new CheckForPortalTrapTask(player, this, location).runTaskLater(GriefPrevention.instance, 600L);
+
+        //Cancel existing rescue task
+        if (portalReturnTaskMap.containsKey(player.getUniqueId()))
+            portalReturnTaskMap.put(player.getUniqueId(), task).cancel();
+        else
+            portalReturnTaskMap.put(player.getUniqueId(), task);
     }
 
     /*
@@ -3799,18 +3752,49 @@ public class GriefPrevention extends JavaPlugin
 	}
 	*/
 
-    //Track scheduled "rescues" so we can cancel them if the player happens to teleport elsewhere so we can cancel it.
-    ConcurrentHashMap<UUID, BukkitTask> portalReturnTaskMap = new ConcurrentHashMap<>();
+    public enum IgnoreMode
+    {None, StandardIgnore, AdminIgnore}
 
-    public void startRescueTask(Player player, Location location)
+    //thread to build the above cache
+    private class CacheOfflinePlayerNamesThread extends Thread
     {
-        //Schedule task to reset player's portal cooldown after 30 seconds (Maximum timeout time for client, in case their network is slow and taking forever to load chunks)
-        BukkitTask task = new CheckForPortalTrapTask(player, this, location).runTaskLater(GriefPrevention.instance, 600L);
+        private final OfflinePlayer[] offlinePlayers;
+        private final ConcurrentHashMap<String, UUID> playerNameToIDMap;
 
-        //Cancel existing rescue task
-        if (portalReturnTaskMap.containsKey(player.getUniqueId()))
-            portalReturnTaskMap.put(player.getUniqueId(), task).cancel();
-        else
-            portalReturnTaskMap.put(player.getUniqueId(), task);
+        CacheOfflinePlayerNamesThread(OfflinePlayer[] offlinePlayers, ConcurrentHashMap<String, UUID> playerNameToIDMap)
+        {
+            this.offlinePlayers = offlinePlayers;
+            this.playerNameToIDMap = playerNameToIDMap;
+        }
+
+        public void run()
+        {
+            long now = System.currentTimeMillis();
+            final long millisecondsPerDay = 1000 * 60 * 60 * 24;
+            for (OfflinePlayer player : offlinePlayers)
+            {
+                try
+                {
+                    UUID playerID = player.getUniqueId();
+                    if (playerID == null) continue;
+                    long lastSeen = player.getLastPlayed();
+
+                    //if the player has been seen in the last 90 days, cache his name/UUID pair
+                    long diff = now - lastSeen;
+                    long daysDiff = diff / millisecondsPerDay;
+                    if (daysDiff <= config_advanced_offlineplayer_cache_days)
+                    {
+                        String playerName = player.getName();
+                        if (playerName == null) continue;
+                        this.playerNameToIDMap.put(playerName, playerID);
+                        this.playerNameToIDMap.put(playerName.toLowerCase(), playerID);
+                    }
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 }

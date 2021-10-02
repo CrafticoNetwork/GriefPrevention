@@ -1,6 +1,6 @@
 package net.gcnt.crafticoprevention.commands;
 
-import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
 import me.ryanhamshire.GriefPrevention.GriefPrevention;
 import net.gcnt.crafticoprevention.menus.ClaimAdminMenu;
 import org.bukkit.Sound;

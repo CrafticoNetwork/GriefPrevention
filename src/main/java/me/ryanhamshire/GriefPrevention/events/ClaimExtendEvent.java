@@ -1,23 +1,18 @@
 package me.ryanhamshire.GriefPrevention.events;
 
-import me.ryanhamshire.GriefPrevention.Claim;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
 
 /**
  * A cancellable event which is called when a claim's depth (lower y bound) is about to be extended.
+ *
  * @author FrankHeijden
  */
 public class ClaimExtendEvent extends Event implements Cancellable
 {
     private static final HandlerList handlers = new HandlerList();
-
-    public static HandlerList getHandlerList()
-    {
-        return handlers;
-    }
-
     private final Claim claim;
     private final int newDepth;
     private boolean cancelled;
@@ -26,6 +21,11 @@ public class ClaimExtendEvent extends Event implements Cancellable
     {
         this.claim = claim;
         this.newDepth = newDepth;
+    }
+
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
     }
 
     @Override

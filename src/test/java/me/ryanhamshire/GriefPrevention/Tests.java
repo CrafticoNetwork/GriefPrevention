@@ -1,5 +1,7 @@
 package me.ryanhamshire.GriefPrevention;
 
+import me.ryanhamshire.GriefPrevention.util.SpamDetector;
+import me.ryanhamshire.GriefPrevention.util.WordFinder;
 import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;

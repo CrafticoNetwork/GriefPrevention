@@ -14,23 +14,10 @@ public class AccrueClaimBlocksEvent extends Event
 {
     // Custom Event Requirements
     private static final HandlerList handlers = new HandlerList();
-
-    public static HandlerList getHandlerList()
-    {
-        return handlers;
-    }
-
-    @Override
-    public HandlerList getHandlers()
-    {
-        return handlers;
-    }
-
     private final Player player;
     private int blocksToAccrue;
     private boolean isIdle = false;
     private boolean cancelled = false;
-
     /**
      * @param player Player receiving accruals
      * @param blocksToAccrue Blocks to accrue
@@ -41,7 +28,6 @@ public class AccrueClaimBlocksEvent extends Event
         this.player = player;
         this.blocksToAccrue = blocksToAccrue / 6;
     }
-
     /**
      * @param player Player receiving accruals
      * @param blocksToAccrue Blocks to accrue
@@ -52,6 +38,17 @@ public class AccrueClaimBlocksEvent extends Event
         this.player = player;
         this.blocksToAccrue = blocksToAccrue / 6;
         this.isIdle = isIdle;
+    }
+
+    public static HandlerList getHandlerList()
+    {
+        return handlers;
+    }
+
+    @Override
+    public HandlerList getHandlers()
+    {
+        return handlers;
     }
 
     public Player getPlayer()
@@ -68,6 +65,16 @@ public class AccrueClaimBlocksEvent extends Event
     }
 
     /**
+     * Modify the amount of claim blocks to deliver to the player for this 10 minute interval
+     *
+     * @param blocksToAccrue blocks to deliver
+     */
+    public void setBlocksToAccrue(int blocksToAccrue)
+    {
+        this.blocksToAccrue = blocksToAccrue;
+    }
+
+    /**
      * @return whether the player was detected as idle (used for idle accrual percentage)
      */
     public boolean isIdle()
@@ -80,14 +87,9 @@ public class AccrueClaimBlocksEvent extends Event
         return this.cancelled;
     }
 
-    /**
-     * Modify the amount of claim blocks to deliver to the player for this 10 minute interval
-     *
-     * @param blocksToAccrue blocks to deliver
-     */
-    public void setBlocksToAccrue(int blocksToAccrue)
+    public void setCancelled(boolean cancel)
     {
-        this.blocksToAccrue = blocksToAccrue;
+        this.cancelled = cancel;
     }
 
     /**
@@ -99,10 +101,5 @@ public class AccrueClaimBlocksEvent extends Event
     public void setBlocksToAccruePerHour(int blocksToAccruePerHour)
     {
         this.blocksToAccrue = blocksToAccruePerHour / 6;
-    }
-
-    public void setCancelled(boolean cancel)
-    {
-        this.cancelled = cancel;
     }
 }

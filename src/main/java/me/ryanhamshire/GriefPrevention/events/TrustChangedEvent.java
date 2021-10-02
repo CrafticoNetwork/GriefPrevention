@@ -1,7 +1,7 @@
 package me.ryanhamshire.GriefPrevention.events;
 
-import me.ryanhamshire.GriefPrevention.Claim;
-import me.ryanhamshire.GriefPrevention.ClaimPermission;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
+import me.ryanhamshire.GriefPrevention.claims.ClaimPermission;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
@@ -48,13 +48,13 @@ public class TrustChangedEvent extends Event implements Cancellable
         this.identifier = identifier;
     }
 
-    @Override
-    public HandlerList getHandlers()
+    public static HandlerList getHandlerList()
     {
         return handlers;
     }
 
-    public static HandlerList getHandlerList()
+    @Override
+    public HandlerList getHandlers()
     {
         return handlers;
     }

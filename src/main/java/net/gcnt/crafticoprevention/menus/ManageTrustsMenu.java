@@ -1,7 +1,7 @@
 package net.gcnt.crafticoprevention.menus;
 
-import me.ryanhamshire.GriefPrevention.Claim;
-import me.ryanhamshire.GriefPrevention.ClaimPermission;
+import me.ryanhamshire.GriefPrevention.claims.Claim;
+import me.ryanhamshire.GriefPrevention.claims.ClaimPermission;
 import me.ryanhamshire.GriefPrevention.GriefPrevention;
 import me.ryanhamshire.GriefPrevention.events.TrustChangedEvent;
 import org.bukkit.Bukkit;
