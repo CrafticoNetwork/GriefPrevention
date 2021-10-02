@@ -23,6 +23,10 @@ import me.ryanhamshire.GriefPrevention.events.PreventBlockBreakEvent;
 import me.ryanhamshire.GriefPrevention.events.SaveTrappedPlayerEvent;
 import me.ryanhamshire.GriefPrevention.events.TrustChangedEvent;
 import me.ryanhamshire.GriefPrevention.metrics.MetricsHandler;
+import net.gcnt.crafticoprevention.menus.ClaimAdminMenu;
+import net.gcnt.crafticoprevention.menus.DeleteClaimMenu;
+import net.gcnt.crafticoprevention.menus.ManageTrustsMenu;
+import net.gcnt.crafticoprevention.menus.SelectTrustCategoryMenu;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.BanList;
 import org.bukkit.BanList.Type;
@@ -81,6 +85,11 @@ public class GriefPrevention extends JavaPlugin
 
     //this handles data storage, like player and region data
     public DataStore dataStore;
+
+    public ClaimAdminMenu claimAdminMenu;
+    public DeleteClaimMenu deleteClaimMenu;
+    public SelectTrustCategoryMenu selectTrustCategoryMenu;
+    public ManageTrustsMenu manageTrustsMenu;
 
     //this tracks item stacks expected to drop which will need protection
     ArrayList<PendingItemProtection> pendingItemWatchList = new ArrayList<>();
@@ -262,6 +271,7 @@ public class GriefPrevention extends JavaPlugin
     }
 
     //initializes well...   everything
+    @Override
     public void onEnable()
     {
         instance = this;
@@ -386,11 +396,43 @@ public class GriefPrevention extends JavaPlugin
 
         AddLogEntry("Boot finished.");
 
+        getCommand("manageland").setExecutor(new net.gcnt.crafticoprevention.commands.Command());
+
+        this.claimAdminMenu = new ClaimAdminMenu();
+        this.deleteClaimMenu = new DeleteClaimMenu();
+        this.selectTrustCategoryMenu = new SelectTrustCategoryMenu();
+        this.manageTrustsMenu = new ManageTrustsMenu();
+
+        Bukkit.getPluginManager().registerEvents(this.claimAdminMenu, this);
+        Bukkit.getPluginManager().registerEvents(this.deleteClaimMenu, this);
+        Bukkit.getPluginManager().registerEvents(this.selectTrustCategoryMenu, this);
+        Bukkit.getPluginManager().registerEvents(this.manageTrustsMenu, this);
+
         try
         {
             new MetricsHandler(this, dataMode);
         }
         catch (Throwable ignored) {}
+    }
+
+    public ManageTrustsMenu getManageTrustsMenu()
+    {
+        return manageTrustsMenu;
+    }
+
+    public SelectTrustCategoryMenu getSelectTrustCategoryMenu()
+    {
+        return selectTrustCategoryMenu;
+    }
+
+    public ClaimAdminMenu getClaimAdminMenu()
+    {
+        return claimAdminMenu;
+    }
+
+    public DeleteClaimMenu getDeleteClaimMenu()
+    {
+        return deleteClaimMenu;
     }
 
     private void loadConfig()
@@ -3375,7 +3417,7 @@ public class GriefPrevention extends JavaPlugin
     }
 
     //determines whether creative anti-grief rules apply at a location
-    boolean creativeRulesApply(Location location)
+    public boolean creativeRulesApply(Location location)
     {
         if (!this.config_creativeWorldsExist) return false;
 

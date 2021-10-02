@@ -6,22 +6,25 @@ loadbefore: [TheUnderground]
 version: '${git.commit.id.describe}'
 api-version: '1.17'
 commands:
+    manageland:
+      aliases: [manageclaim]
+      description: Manage your claim(s) through a menu.
     abandonclaim:
       description: Deletes a claim.
-      usage: /AbandonClaim
+      usage: /abandonclaim
       aliases: [unclaim, declaim, removeclaim, disclaim]
       permission: griefprevention.claims
     abandontoplevelclaim:
       description: Deletes a claim and all its subdivisions.
-      usage: /AbandonTopLevelClaim
+      usage: /abandontoplevelclaim
       permission: griefprevention.claims
     abandonallclaims:
       description: Deletes ALL your claims.
-      usage: /AbandonAllClaims
+      usage: /abandonallclaims
       permission: griefprevention.claims
     trust:
       description: Grants a player full access to your claim(s).
-      usage: /Trust <player>  Grants a player permission to build.  See also /UnTrust, /ContainerTrust, /AccessTrust, and /PermissionTrust.
+      usage: /trust <player>  Grants a player permission to build.  See also /UnTrust, /ContainerTrust, /AccessTrust, and /PermissionTrust.
       aliases: tr
       permission: griefprevention.claims
     untrust:
