@@ -7,4 +7,5 @@ import java.util.UUID;
 
 public record PendingItemProtection(Location location, UUID owner, long expirationTimestamp, ItemStack itemStack)
 {
+
 }

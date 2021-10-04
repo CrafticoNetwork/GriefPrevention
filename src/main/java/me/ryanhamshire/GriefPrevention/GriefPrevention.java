@@ -18,6 +18,7 @@
 
 package me.ryanhamshire.GriefPrevention;
 
+import me.clip.placeholderapi.PlaceholderAPI;
 import me.ryanhamshire.GriefPrevention.claims.Claim;
 import me.ryanhamshire.GriefPrevention.claims.ClaimPermission;
 import me.ryanhamshire.GriefPrevention.claims.ClaimsMode;
@@ -34,6 +35,7 @@ import me.ryanhamshire.GriefPrevention.events.TrustChangedEvent;
 import me.ryanhamshire.GriefPrevention.handlers.*;
 import me.ryanhamshire.GriefPrevention.tasks.*;
 import me.ryanhamshire.GriefPrevention.util.*;
+import net.gcnt.crafticoprevention.PAPIHook;
 import net.gcnt.crafticoprevention.menus.ClaimAdminMenu;
 import net.gcnt.crafticoprevention.menus.DeleteClaimMenu;
 import net.gcnt.crafticoprevention.menus.ManageTrustsMenu;
@@ -201,12 +203,12 @@ public class GriefPrevention extends JavaPlugin
     public ConcurrentHashMap<UUID, BukkitTask> portalReturnTaskMap = new ConcurrentHashMap<>();
     public EconomyHandler economyHandler;
     //this tracks item stacks expected to drop which will need protection
-    ArrayList<PendingItemProtection> pendingItemWatchList = new ArrayList<>();
+    public ArrayList<PendingItemProtection> pendingItemWatchList = new ArrayList<>();
     //log entry manager for GP's custom log files
-    CustomLogger customLogger;
-    HashMap<World, Boolean> config_pvp_specifiedWorlds;                //list of worlds where pvp anti-grief rules apply, according to the config file
+    public CustomLogger customLogger;
+    public HashMap<World, Boolean> config_pvp_specifiedWorlds;                //list of worlds where pvp anti-grief rules apply, according to the config file
     //helper method to resolve a player by name
-    ConcurrentHashMap<String, UUID> playerNameToIDMap = new ConcurrentHashMap<>();
+    public ConcurrentHashMap<String, UUID> playerNameToIDMap = new ConcurrentHashMap<>();
     private boolean config_creativeWorldsExist;                     //note on whether there are any creative mode worlds, to save cpu cycles on a common hash lookup
     private String databaseUrl;
     private String databaseUserName;
@@ -519,6 +521,11 @@ public class GriefPrevention extends JavaPlugin
         this.selectTrustCategoryMenu = new SelectTrustCategoryMenu();
         this.manageTrustsMenu = new ManageTrustsMenu();
         this.mainCommands = new MainCommands();
+
+        if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI"))
+        {
+            new PAPIHook().register();
+        }
 
         Bukkit.getPluginManager().registerEvents(this.claimAdminMenu, this);
         Bukkit.getPluginManager().registerEvents(this.deleteClaimMenu, this);
@@ -1289,7 +1296,7 @@ public class GriefPrevention extends JavaPlugin
                 errorMessage = claim.checkPermission(player, ClaimPermission.Edit, null);
                 if (errorMessage != null)
                 {
-                    errorMessage = () -> "Only " + claim.getOwnerName() + " can grant /PermissionTrust here.";
+                    errorMessage = () -> "Only " + claim.getOwnerName() + " can grant /permissiontrust here.";
                 }
             }
 
@@ -1354,33 +1361,18 @@ public class GriefPrevention extends JavaPlugin
 
         //notify player
         if (recipientName.equals("public")) recipientName = this.dataStore.getMessage(Messages.CollectivePublic);
-        String permissionDescription;
-        if (permissionLevel == null)
+        String permissionDescription = this.dataStore.getMessage(Messages.PermissionsPermission);
+        if (permissionLevel != null)
         {
-            permissionDescription = this.dataStore.getMessage(Messages.PermissionsPermission);
-        }
-        else if (permissionLevel == ClaimPermission.Build)
-        {
-            permissionDescription = this.dataStore.getMessage(Messages.BuildPermission);
-        }
-        else if (permissionLevel == ClaimPermission.Access)
-        {
-            permissionDescription = this.dataStore.getMessage(Messages.AccessPermission);
-        }
-        else //ClaimPermission.Inventory
-        {
-            permissionDescription = this.dataStore.getMessage(Messages.ContainersPermission);
+            permissionDescription = switch (permissionLevel)
+                    {
+                        case Build -> this.dataStore.getMessage(Messages.BuildPermission);
+                        case Access -> this.dataStore.getMessage(Messages.AccessPermission);
+                        default -> this.dataStore.getMessage(Messages.ContainersPermission);
+                    };
         }
 
-        String location;
-        if (claim == null)
-        {
-            location = this.dataStore.getMessage(Messages.LocationAllClaims);
-        }
-        else
-        {
-            location = this.dataStore.getMessage(Messages.LocationCurrentClaim);
-        }
+        String location = claim == null ? this.dataStore.getMessage(Messages.LocationAllClaims) : this.dataStore.getMessage(Messages.LocationCurrentClaim);
 
         GriefPrevention.sendMessage(player, TextMode.Success, Messages.GrantPermissionConfirmation, recipientName, permissionDescription, location);
     }

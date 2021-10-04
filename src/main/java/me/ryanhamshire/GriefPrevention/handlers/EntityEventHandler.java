@@ -497,21 +497,21 @@ public class EntityEventHandler implements Listener
             PendingItemProtection pendingProtection = watchList.get(i);
             //ignore and remove any expired pending protections
             if (now == null) now = System.currentTimeMillis();
-            if (pendingProtection.expirationTimestamp < now)
+            if (pendingProtection.expirationTimestamp() < now)
             {
                 watchList.remove(i--);
                 continue;
             }
             //skip if item stack doesn't match
-            if (pendingProtection.itemStack.getAmount() != newItem.getItemStack().getAmount() ||
-                    pendingProtection.itemStack.getType() != newItem.getItemStack().getType())
+            if (pendingProtection.itemStack().getAmount() != newItem.getItemStack().getAmount() ||
+                    pendingProtection.itemStack().getType() != newItem.getItemStack().getType())
             {
                 continue;
             }
 
             //skip if new item location isn't near the expected spawn area
             Location spawn = event.getLocation();
-            Location expected = pendingProtection.location;
+            Location expected = pendingProtection.location();
             if (!spawn.getWorld().equals(expected.getWorld()) ||
                     spawn.getX() < expected.getX() - 5 ||
                     spawn.getX() > expected.getX() + 5 ||
@@ -524,7 +524,7 @@ public class EntityEventHandler implements Listener
             }
 
             //otherwise, mark item with protection information
-            newItem.setMetadata("GP_ITEMOWNER", new FixedMetadataValue(GriefPrevention.instance, pendingProtection.owner));
+            newItem.setMetadata("GP_ITEMOWNER", new FixedMetadataValue(GriefPrevention.instance, pendingProtection.owner()));
 
             //and remove pending protection data
             watchList.remove(i);

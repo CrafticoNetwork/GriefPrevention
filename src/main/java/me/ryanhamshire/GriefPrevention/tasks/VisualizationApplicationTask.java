@@ -25,7 +25,7 @@ import me.ryanhamshire.GriefPrevention.util.VisualizationElement;
 import org.bukkit.entity.Player;
 
 //applies a visualization for a player by sending him block change packets
-class VisualizationApplicationTask implements Runnable
+public class VisualizationApplicationTask implements Runnable
 {
     private final Visualization visualization;
     private final Player player;

@@ -642,7 +642,7 @@ public abstract class DataStore
         return playerData;
     }
 
-    abstract PlayerData getPlayerDataFromStorage(UUID playerID);
+    public abstract PlayerData getPlayerDataFromStorage(UUID playerID);
 
     //deletes a claim or subdivision
     synchronized public void deleteClaim(Claim claim)

@@ -99,7 +99,7 @@ public class Tests
     {
         SpamDetector detector = new SpamDetector();
         String message = "Hi, everybody! :)";
-        SpamAnalysisResult result = detector.AnalyzeMessage(player1, message, 1000);
+        SpamDetector.SpamAnalysisResult result = detector.AnalyzeMessage(player1, message, 1000);
         assertNull(result.muteReason);
         assertFalse(result.shouldWarnChatter);
         assertFalse(result.shouldBanChatter);
@@ -221,7 +221,7 @@ public class Tests
     {
         SpamDetector detector = new SpamDetector();
         String message = "OMG I LUFF U KRISTINAAAAAA!";
-        SpamAnalysisResult result = detector.AnalyzeMessage(player1, message, 1000);
+        SpamDetector.SpamAnalysisResult result = detector.AnalyzeMessage(player1, message, 1000);
         assertEquals(result.finalMessage, message.toLowerCase());
         assertNull(result.muteReason);
     }
@@ -231,7 +231,7 @@ public class Tests
     {
         SpamDetector detector = new SpamDetector();
         String message = "=D";
-        SpamAnalysisResult result = detector.AnalyzeMessage(player1, message, 1000);
+        SpamDetector.SpamAnalysisResult result = detector.AnalyzeMessage(player1, message, 1000);
         assertEquals(result.finalMessage, message);
         assertNull(result.muteReason);
     }
@@ -247,7 +247,7 @@ public class Tests
         assertNull(detector.AnalyzeMessage(player1, "Oh how I've missed you all! :)", 3000).muteReason);
 
         //begin mute and warning
-        SpamAnalysisResult result = detector.AnalyzeMessage(player1, "Why is nobody responding to me??!", 4000);
+        SpamDetector.SpamAnalysisResult result = detector.AnalyzeMessage(player1, "Why is nobody responding to me??!", 4000);
         assertNotNull(result.muteReason);
         assertTrue(result.shouldWarnChatter);
         assertFalse(result.shouldBanChatter);
@@ -272,7 +272,7 @@ public class Tests
         assertNull(detector.AnalyzeMessage(player1, "Oh how I've missed you all! :)", 3000).muteReason);
 
         //start of mutes, and a warning
-        SpamAnalysisResult result = detector.AnalyzeMessage(player1, "Why is nobody responding to me??!", 4000);
+        SpamDetector.SpamAnalysisResult result = detector.AnalyzeMessage(player1, "Why is nobody responding to me??!", 4000);
         assertNotNull(result.muteReason);
         assertTrue(result.shouldWarnChatter);
         assertFalse(result.shouldBanChatter);
